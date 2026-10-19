@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Mando del Robot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Barlow:wght@400;500&display=swap">
+<style>
+  /* Layout: una sola columna tipo control remoto, cruceta grande abajo para el pulgar */
+  :root {
+    --bg: #eceeea;
+    --surface: #ffffff;
+    --key: #dde2de;
+    --key-edge: #c3cac5;
+    --fg: #161b19;
+    --muted: #59635d;
+    --accent: #d9480f;
+    --on-accent: #ffffff;
+    --ok: #1c7d46;
+    --bad: #b8322a;
+    --stop: #b8322a;
+    --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --font-body: "Barlow", -apple-system, system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1412; --surface: #171e1b; --key: #232c28; --key-edge: #323d38;
+      --fg: #e6ece8; --muted: #8d9a93; --accent: #ff8a3d; --on-accent: #1a0e05;
+      --ok: #4cd18a; --bad: #ff6b5e; --stop: #d4473d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1412; --surface: #171e1b; --key: #232c28; --key-edge: #323d38;
+    --fg: #e6ece8; --muted: #8d9a93; --accent: #ff8a3d; --on-accent: #1a0e05;
+    --ok: #4cd18a; --bad: #ff6b5e; --stop: #d4473d;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 16px;
+    padding-block: 20px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main { max-width: 380px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: 0.02em; text-transform: uppercase; margin: 0; text-wrap: balance; }
+  .chip { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.04em; }
+
+  .link { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--key-edge); border-radius: 12px; padding: 12px 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--bad); flex: none; }
+  .link.ok .dot { background: var(--ok); }
+  #estado { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+
+  button { font: inherit; color: inherit; }
+  button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  #conectar { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 12px; font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; padding: 14px 20px; width: 100%; }
+  #conectar:active { filter: brightness(0.92); }
+
+  #pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; touch-action: none; -webkit-user-select: none; user-select: none; }
+  .k { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--key-edge); border-bottom-width: 4px; border-radius: 14px; background: var(--key); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 700; font-size: 40px; line-height: 1; touch-action: none; -webkit-touch-callout: none; }
+  .k svg { width: 38%; height: 38%; fill: currentColor; pointer-events: none; }
+  .k.activo { background: var(--accent); color: var(--on-accent); border-color: var(--accent); transform: translateY(2px); border-bottom-width: 2px; }
+  .k.stop { background: var(--stop); color: #fff; border-color: var(--stop); font-size: 24px; letter-spacing: 0.06em; }
+  .k.stop.activo { filter: brightness(1.15); }
+  .vacio { visibility: hidden; }
+
+  .vel { background: var(--surface); border: 1px solid var(--key-edge); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .vel label { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-weight: 500; }
+  .vel output { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 32px; }
+
+  .ultimo { font-family: var(--font-mono); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .nota { font-size: 14px; color: var(--muted); line-height: 1.45; max-width: 65ch; margin: 0; }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h1>Mando del robot</h1>
+    <span class="chip">UNO · L298N · BLE</span>
+  </header>
+
+  <div class="link" id="enlace">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="estado" role="status">Sin conexión</span>
+  </div>
+  <button id="conectar" type="button">Conectar Bluetooth</button>
+
+  <div id="pad">
+    <div class="k vacio"></div>
+    <button class="k" type="button" data-cmd="F" aria-label="Adelante"><svg viewBox="0 0 24 24"><path d="M12 4l9 15H3z"/></svg></button>
+    <div class="k vacio"></div>
+    <button class="k" type="button" data-cmd="L" aria-label="Izquierda"><svg viewBox="0 0 24 24"><path d="M4 12l15-9v18z"/></svg></button>
+    <button class="k stop" type="button" data-cmd="S" aria-label="Parar">STOP</button>
+    <button class="k" type="button" data-cmd="R" aria-label="Derecha"><svg viewBox="0 0 24 24"><path d="M20 12L5 21V3z"/></svg></button>
+    <div class="k vacio"></div>
+    <button class="k" type="button" data-cmd="B" aria-label="Atrás"><svg viewBox="0 0 24 24"><path d="M12 20L3 5h18z"/></svg></button>
+    <div class="k vacio"></div>
+  </div>
+
+  <div class="vel">
+    <label for="vel"><span>Velocidad</span><output id="velTxt" for="vel">7 · PWM 212</output></label>
+    <input type="range" id="vel" min="0" max="9" value="7">
+  </div>
+
+  <div class="ultimo"><span>Último comando: <b id="ult">—</b></span><span>Se detiene solo a los 600 ms</span></div>
+
+  <p class="nota">Mantén presionada una flecha para mover el robot. Al soltar, se detiene. Abre esta página en el navegador Bluefy; Safari y Chrome del iPhone no tienen Bluetooth web.</p>
+</main>
+
+<script>
+(function () {
+  var SERVICIO = '0000ffe0-0000-1000-8000-00805f9b34fb';
+  var CARACTERISTICA = '0000ffe1-0000-1000-8000-00805f9b34fb';
+  var enc = new TextEncoder();
+
+  var carac = null, dispositivo = null, intervalo = null, ocupado = false;
+
+  var enlace = document.getElementById('enlace');
+  var estado = document.getElementById('estado');
+  var btnConectar = document.getElementById('conectar');
+  var vel = document.getElementById('vel');
+  var velTxt = document.getElementById('velTxt');
+  var ult = document.getElementById('ult');
+
+  function pwm(n) { return Math.round(90 + (n / 9) * (255 - 90)); }
+  function pintarVel() { velTxt.textContent = vel.value + ' · PWM ' + pwm(Number(vel.value)); }
+  pintarVel();
+
+  function setEstado(txt, ok) {
+    estado.textContent = txt;
+    enlace.className = ok ? 'link ok' : 'link';
+  }
+
+  async function enviar(c) {
+    ult.textContent = c;
+    if (!carac || ocupado) return;
+    ocupado = true;
+    try { await carac.writeValueWithoutResponse(enc.encode(c)); }
+    catch (e) { try { await carac.writeValue(enc.encode(c)); } catch (e2) {} }
+    ocupado = false;
+  }
+
+  async function conectar() {
+    if (!navigator.bluetooth) {
+      setEstado('Este navegador no tiene Bluetooth web. Abre la página en Bluefy.', false);
+      return;
+    }
+    try {
+      setEstado('Buscando dispositivos…', false);
+      dispositivo = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [SERVICIO]
+      });
+      dispositivo.addEventListener('gattserverdisconnected', function () {
+        carac = null;
+        setEstado('Sin conexión', false);
+        btnConectar.textContent = 'Conectar Bluetooth';
+      });
+      var servidor = await dispositivo.gatt.connect();
+      var servicio = await servidor.getPrimaryService(SERVICIO);
+      carac = await servicio.getCharacteristic(CARACTERISTICA);
+      setEstado('Conectado a ' + (dispositivo.name || 'el módulo'), true);
+      btnConectar.textContent = 'Reconectar';
+      enviar(String(vel.value));
+    } catch (e) {
+      setEstado('No se pudo conectar: ' + e.message, false);
+    }
+  }
+  btnConectar.addEventListener('click', conectar);
+
+  function empezar(btn) {
+    var cmd = btn.dataset.cmd;
+    btn.classList.add('activo');
+    enviar(cmd);
+    clearInterval(intervalo);
+    if (cmd !== 'S') intervalo = setInterval(function () { enviar(cmd); }, 150);
+  }
+  function terminar(btn) {
+    btn.classList.remove('activo');
+    clearInterval(intervalo);
+    intervalo = null;
+    enviar('S');
+  }
+
+  document.querySelectorAll('[data-cmd]').forEach(function (btn) {
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      try { btn.setPointerCapture(e.pointerId); } catch (err) {}
+      empezar(btn);
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (ev) {
+      btn.addEventListener(ev, function () { if (btn.classList.contains('activo')) terminar(btn); });
+    });
+    btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  });
+
+  vel.addEventListener('input', function () {
+    pintarVel();
+    enviar(String(vel.value));
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) enviar('S');
+  });
+})();
+</script>
+
+</body>
+</html>
